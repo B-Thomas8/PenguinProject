@@ -1,0 +1,198 @@
+---
+title: "penguin_analysis"
+output: html_document
+date: "2024-10-16"
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+You can also embed plots, for example: ```{r pressure, echo=FALSE}
+plot(pressure)
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+#start of my code
+loading in the packages
+---
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+library(janitor)
+library(here)
+```
+
+
+
+using the here package - this returns the path to your project
+
+```{r}
+here::here()
+```
+
+
+penguin data
+penguins_raw is a variable
+head shows first 6 rows
+```{r}
+head(penguins_raw)
+```
+
+
+checking column names
+- can see there is spaces, brackets and slashes which is not ideal 
+- never change the raw data in the excel file, save the raw data and edit it on here
+- so, save raw data as csv
+```{r}
+colnames(penguins_raw)
+write.csv(penguins_raw, here("data", "penguins_raw.csv"))
+```
+
+remove comments column
+- use select and -
+```{r}
+penguins_raw <- select(penguins_raw, -Comments)
+```
+-but this is bad code!!!!! we've now overwritten this variable
+instead...
+- get back penguins raw
+- save edits as different names
+```{r}
+penguins_raw <- read.csv(here("data", "penguins_raw.csv"))
+penguins_clean <- select(penguins_raw, -Comments)
+```
+
+
+we can do this for 2 columns at once...
+- use select and starts_with to remove delta columns
+```{r}
+penguins_clean <- select(penguins_raw, -starts_with("delta"))
+```
+-this is overwriting again!!!
+
+so...
+this does everything in one go, we're not overwriting, can just add steps
+- this is the best code!!!!! dont look at above
+- we are now using piping to make penguins_clean, and then checking its worked using colnames() function
+- we added another pipe to clean the names - this makes them all lower case and removes spaces, brackets and slashes
+- save it as a csv
+```{r}
+penguins_raw <- read.csv(here("data", "penguins_raw.csv"))
+penguins_clean <- penguins_raw %>%
+  select(-Comments) %>% 
+  select(-starts_with("delta")) %>%
+  clean_names() %>%
+  shorten_species()
+colnames(penguins_clean)
+write.csv(penguins_clean, here("data", "penguins_clean.csv"))
+```
+
+
+we can make our own functions 
+- this is basically a quicker way of doing everything we did above!
+```{r}
+cleaning_penguin_columns <- function(raw_data){
+  raw_data %>%
+    clean_names() %>%
+    select(-comments) %>% 
+    select(-starts_with("delta")) %>%
+    shorten_species()
+}
+    
+penguins_new <- cleaning_penguin_columns(penguins_raw)
+```
+
+
+can load functions from cleaning.R to our script
+- loading all functions in the cleaning.R script
+```{r}
+source(here("functions", "cleaning.R"))
+```
+
+
+use renv to install packages without using install.packages functions
+-snapshot - everuything ive installed is in renv, so anyone else using this code can access all installed packages
+```{r}
+renv::snapshot()
+```
+
+###session 2
+```{r}
+#flipper_boxplot <- ggplot(
+  data = penguins_clean,
+  aes(x = species,
+      y = flipper_length_mm)) +
+    geom_boxplot()
+
+```
+subset columns 
+```{r}
+#penguins_flippers <- select(penguins_clean,c("species", "flipper_length_mm"))
+#colnames(penguins_flippers)
+```
+remove NAs
+```{r}
+#penguins_flippers <- drop_na(penguins_flippers)
+```
+but this is bad code - we overwrote penguins_flippers!!
+instead, use piping 
+```{r}
+penguins_flippers <- penguins_clean %>%
+  select(species,flipper_length_mm) %>%
+  drop_na()
+colnames(penguins_flippers)
+```
+make boxplot again, add colour, add data on top with geom_jitter
+then make data same colour as box plot
+add another line about position of jitter
+then change column names
+change colour of plots to make them colour blind friendly - add map to top of code for species colours
+```{r}
+species_colours <- c("Adelie" = "darkorange",
+                     "Chinstrap" = "purple",
+                     "Gentoo" = "cyan4")
+flipper_boxplot <- ggplot(
+  data = penguins_flippers,
+  aes(x = species,
+      y = flipper_length_mm)) +
+    geom_boxplot(aes(color = species),
+                 width = 0.3,
+                 show.legend = FALSE) +
+  geom_jitter(aes(color = species),
+              alpha = 0.3,
+              show.legend = FALSE,
+              position = position_jitter(
+                width = 0.2,
+                seed = 0)) +
+  scale_color_manual(values = species_colours) +
+  labs(x = "Species", 
+       y = "Flipper Length (mm)") +
+  theme_minimal()
+flipper_boxplot
+```
+
+making function - *unfinished - she said she'd give us the code
+```{r}
+plot_boxplot <- function(data,
+                         x_column,
+                         y_column,
+                         x_label,
+                         y_label, 
+                         colour_mapping){
+  #drop the na
+  data <- data %>%
+    drop_na({{y_column}})
+  
+  #make plot
+  ggplot(
+    data = data,
+    aes(x = {{x_column}},
+        y = {{y_column}},
+        color = {{}})
+  )
+```
+
+
+
+
+
+
+
